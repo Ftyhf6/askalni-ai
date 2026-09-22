@@ -252,7 +252,10 @@ function App() {
           </section>
         )}
 
-        <footer className="mt-6 text-center text-xs text-slate-600">اسألني AI • تجربة عربية أولاً • 1–60 دقيقة</footer>
+        <footer className="mt-6 flex flex-col items-center justify-center gap-2 text-center text-xs text-slate-600 sm:flex-row">
+          <span>اسألني AI • تجربة عربية أولاً • 1–60 دقيقة</span>
+          <a href="/privacy.html" className="text-slate-400 underline underline-offset-4 hover:text-amber-300">سياسة الخصوصية</a>
+        </footer>
       </div>
     </main>
   );
