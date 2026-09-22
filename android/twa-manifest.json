@@ -1,0 +1,18 @@
+{
+  "packageId": "com.aljalal.askalni",
+  "host": "askalni-ai-kappa.vercel.app",
+  "name": "اسألني AI",
+  "launcherName": "اسألني AI",
+  "display": "standalone",
+  "themeColor": "#fbbf24",
+  "navigationColor": "#020617",
+  "navigationColorDark": "#020617",
+  "navigationDividerColor": "#020617",
+  "navigationDividerColorDark": "#020617",
+  "startUrl": "/",
+  "iconUrl": "https://askalni-ai-kappa.vercel.app/icons/icon-512.svg",
+  "maskableIconUrl": "https://askalni-ai-kappa.vercel.app/icons/icon-512.svg",
+  "backgroundColor": "#020617",
+  "enableNotifications": true,
+  "fallbackType": "customtabs"
+}
