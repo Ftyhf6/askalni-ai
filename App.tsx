@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 
+type Story = { title: string; logline: string; genre: string; durationMinutes: number; assumptions: string[]; religiousNotes: string[]; characters: { name: string; role: string; visual: string; personality: string }[]; world: string; story: { beginning: string; middle: string; climax: string; ending: string }; scenes: { number: number; durationSeconds: number; location: string; action: string; dialogue: string; camera: string; lighting: string; sound: string; visualPrompt: string }[]; productionPlan: { imageStyle: string; videoStyle: string; audioStyle: string; continuity: string } };
+
 type Character = {
   id: string;
   name: string;
@@ -18,8 +20,8 @@ const characters: Character[] = [
   { id: "robot", name: "شخصية آلية", emoji: "🤖", category: "خيالي", style: "مستقبلي", description: "روبوت بجسم بشري" },
 ];
 
-const styles = ["كرتوني", "حقيقي", "واقعي", "حضري", "ريفي", "كلاسيكي", "يمني", "خيالي", "سينمائي"];
-const categories = ["فاكهة", "خضار", "حيوان", "إنسان", "خيالي"];
+const styles = ["كرتوني", "حقيقي", "واقعي", "حضري", "ريفي", "كلاسيكي", "يمني", "خيالي", "سينمائي", "خيال علمي", "رعب", "فانتازيا", "وحوش", "أكشن", "تاريخي"];
+const categories = ["فاكهة", "خضار", "حيوان", "إنسان", "خيالي"];\nconst genres = ["فيلم سينمائي", "فانتازيا", "خيال علمي", "وحوش", "رعب", "مغامرة", "أكشن", "كوميديا", "دراما", "تاريخي", "قصة دينية"];
 
 function App() {
   const [idea, setIdea] = useState("");
@@ -27,7 +29,7 @@ function App() {
   const [customCharacter, setCustomCharacter] = useState("");
   const [style, setStyle] = useState("سينمائي");
   const [duration, setDuration] = useState(3);
-  const [language, setLanguage] = useState("العربية");
+  const [language, setLanguage] = useState("العربية");\n  const [genre, setGenre] = useState("فيلم سينمائي");\n  const [religiousMode, setReligiousMode] = useState(false);\n  const [story, setStory] = useState<Story | null>(null);\n  const [generating, setGenerating] = useState(false);
   const [step, setStep] = useState<"idea" | "details" | "confirm" | "done">("idea");
   const [filter, setFilter] = useState("الكل");
   const [error, setError] = useState("");
@@ -179,7 +181,7 @@ function App() {
 
             <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5">
               <h2 className="text-xl font-bold">تفاصيل التنفيذ</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">\n                <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">نوع العمل</span><select value={genre} onChange={(e) => setGenre(e.target.value)} className="mt-2 w-full bg-transparent font-bold outline-none">{genres.map((item) => <option key={item}>{item}</option>)}</select></label>
                 <label className="rounded-2xl bg-slate-900 p-4">
                   <span className="text-sm text-slate-400">المدة بالدقائق</span>
                   <input
@@ -217,7 +219,7 @@ function App() {
                 <div><span className="text-slate-400">الشخصية:</span> {characterText}</div>
                 <div><span className="text-slate-400">النمط:</span> {style}</div>
                 <div><span className="text-slate-400">المدة:</span> {duration} دقيقة</div>
-                <div><span className="text-slate-400">اللغة:</span> {language}</div>
+                <div><span className="text-slate-400">اللغة:</span> {language}</div>\n                <div><span className="text-slate-400">النوع:</span> {genre}</div>\n                <div><span className="text-slate-400">الوضع الديني:</span> {religiousMode ? "مفعّل" : "غير مفعّل"}</div>
               </div>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <button type="button" onClick={goToConfirm} className="flex-1 rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950">اكتمال التفاصيل → مراجعة التنفيذ</button>
@@ -238,7 +240,7 @@ function App() {
               <div className="font-semibold">التكلفة: {price === 0 ? "مجاني" : `$${price}`}</div>
               <div className="mt-1 text-slate-400">لا يبدأ التنفيذ إلا بعد ضغط زر «ابدأ التنفيذ».</div>
             </div>
-            <button type="button" onClick={confirmPlan} className="mt-5 w-full rounded-2xl bg-emerald-400 px-5 py-4 font-bold text-slate-950">ابدأ التنفيذ</button>
+            <button type="button" onClick={confirmPlan} disabled={generating} className="mt-5 w-full rounded-2xl bg-emerald-400 px-5 py-4 font-bold text-slate-950 disabled:opacity-60">{generating ? "⏳ جارٍ إنشاء القصة والمشاهد..." : "ابدأ إنشاء القصة والفيلم"}</button>
             <button type="button" onClick={() => { setError(""); setStep("details"); }} className="mt-3 w-full rounded-2xl border border-white/10 px-5 py-3">العودة للتعديل</button>
           </section>
         )}
@@ -247,7 +249,7 @@ function App() {
           <section className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-7 text-center">
             <div className="text-5xl" aria-hidden="true">✅</div>
             <h2 className="mt-3 text-3xl font-bold">تم تأكيد طلبك</h2>
-            <p className="mt-2 text-slate-300">تم حفظ المواصفات داخل هذه الجلسة، وهذه المرحلة جاهزة لربط محرك الذكاء الاصطناعي الفعلي وتوليد المشاهد والفيديو.</p>
+            <p className="mt-2 text-slate-300">{story ? "تم إنشاء القصة وخطة المشاهد فعليًا. مولد الفيديو والصوت سيتم ربطه في المرحلة التالية." : "لم يتم إنشاء نتيجة بعد."}</p>{story && <div className="mt-6 space-y-4 text-right"><div className="rounded-2xl bg-slate-950/70 p-5"><h3 className="text-2xl font-bold">{story.title}</h3><p className="mt-2 text-slate-300">{story.logline}</p></div><div className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">القصة الكاملة</h3><p className="mt-2">{story.story.beginning}</p><p className="mt-2">{story.story.middle}</p><p className="mt-2">{story.story.climax}</p><p className="mt-2">{story.story.ending}</p></div><div className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">المشاهد ({story.scenes.length})</h3><div className="mt-3 space-y-3">{story.scenes.map((scene) => <article key={scene.number} className="rounded-xl border border-white/10 p-4"><div className="font-semibold">المشهد {scene.number} — {scene.location}</div><p className="mt-1 text-sm text-slate-300">{scene.action}</p><p className="mt-1 text-xs text-slate-500">الكاميرا: {scene.camera} • الإضاءة: {scene.lighting}</p><p className="mt-1 text-xs text-slate-500">الصوت: {scene.sound}</p></article>)}</div></div></div>
             <button type="button" onClick={startNewStory} className="mt-5 rounded-2xl bg-white px-5 py-3 font-bold text-slate-950">إنشاء قصة جديدة</button>
           </section>
         )}
