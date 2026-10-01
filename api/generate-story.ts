@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: { "content-type": "application/json; charset=utf-8" } });
   const apiKey = process.env.OPENAI_API_KEY;
