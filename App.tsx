@@ -58,8 +58,14 @@ export default function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ idea, character: customCharacter.trim() || character, style, duration, language, genre, religiousMode }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "تعذر إنشاء القصة.");
+      const raw = await response.text();
+      let data: { error?: string; story?: Story } | null = null;
+      try { data = JSON.parse(raw); } catch {
+        const clean = raw.replace(/\\s+/g, " ").trim();
+        throw new Error(clean ? `خطأ من الخادم: ${clean.slice(0, 240)}` : "تعذر قراءة استجابة الخادم.");
+      }
+      if (!response.ok) throw new Error(data?.error || "تعذر إنشاء القصة.");
+      if (!data?.story) throw new Error("الخادم لم يُرجع قصة صالحة.");
       setStory(data.story); setStep("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذر إنشاء القصة.");
