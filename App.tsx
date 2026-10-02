@@ -61,7 +61,7 @@ export default function App() {
       const raw = await response.text();
       let data: { error?: string; story?: Story } | null = null;
       try { data = JSON.parse(raw); } catch {
-        const clean = raw.replace(/\\s+/g, " ").trim();
+        const clean = raw.replace(/\s+/g, " ").trim();
         throw new Error(clean ? `خطأ من الخادم: ${clean.slice(0, 240)}` : "تعذر قراءة استجابة الخادم.");
       }
       if (!response.ok) throw new Error(data?.error || "تعذر إنشاء القصة.");
