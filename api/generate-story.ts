@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
-const AI_TIMEOUT_MS = 55_000;
-const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
+const AI_TIMEOUT_MS = 50_000;
+const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers: { "content-type": "application/json; charset=utf-8" } });
@@ -20,8 +20,10 @@ export default async function handler(req: Request): Promise<Response> {
       const response = await fetch("https://api.openai.com/v1/responses", { signal: controller.signal, method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + apiKey }, body: JSON.stringify({ model, text: { format: { type: "json_object" } }, input: [{ role: "system", content: [{ type: "input_text", text: system }] }, { role: "user", content: [{ type: "input_text", text: user }] }] }) });
       const raw = await response.text();
       if (!response.ok) return new Response(JSON.stringify({ error: "تعذر تشغيل محرك الذكاء الاصطناعي.", providerStatus: response.status }), { status: 502, headers: { "content-type": "application/json; charset=utf-8" } });
-      const data = JSON.parse(raw) as { output_text?: string };
+      let data: any;
+      try { data = JSON.parse(raw); } catch { return new Response(JSON.stringify({ error: "استجابة غير صالحة من محرك الذكاء الاصطناعي.", code: "AI_INVALID_RESPONSE" }), { status: 502, headers: { "content-type": "application/json; charset=utf-8" } }); }
       const text = (data.output_text || (Array.isArray(data.output) ? data.output.flatMap((item: any) => Array.isArray(item?.content) ? item.content.map((part: any) => part?.text || "") : []).join("\n") : "")).trim();
+      if (!text) return new Response(JSON.stringify({ error: "لم يُرجع محرك الذكاء الاصطناعي نص القصة.", code: "AI_EMPTY_RESPONSE" }), { status: 502, headers: { "content-type": "application/json; charset=utf-8" } });
       const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
       const jsonText = match?.[1] || text;
       const start = jsonText.indexOf("{"); const end = jsonText.lastIndexOf("}");
