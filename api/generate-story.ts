@@ -22,7 +22,7 @@ export default async function handler(req: Request): Promise<Response> {
       if (!response.ok) return new Response(JSON.stringify({ error: "تعذر تشغيل محرك الذكاء الاصطناعي.", providerStatus: response.status }), { status: 502, headers: { "content-type": "application/json; charset=utf-8" } });
       const data = JSON.parse(raw) as { output_text?: string };
       const text = data.output_text?.trim() || "";
-      const match = text.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/i);
+      const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
       const jsonText = match?.[1] || text;
       const start = jsonText.indexOf("{"); const end = jsonText.lastIndexOf("}");
       if (start < 0 || end <= start) throw new Error("invalid-json");
