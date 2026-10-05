@@ -21,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
       const raw = await response.text();
       if (!response.ok) return new Response(JSON.stringify({ error: "تعذر تشغيل محرك الذكاء الاصطناعي.", providerStatus: response.status }), { status: 502, headers: { "content-type": "application/json; charset=utf-8" } });
       const data = JSON.parse(raw) as { output_text?: string };
-      const text = data.output_text?.trim() || "";
+      const text = (data.output_text || (Array.isArray(data.output) ? data.output.flatMap((item: any) => Array.isArray(item?.content) ? item.content.map((part: any) => part?.text || "") : []).join("\n") : "")).trim();
       const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
       const jsonText = match?.[1] || text;
       const start = jsonText.indexOf("{"); const end = jsonText.lastIndexOf("}");
