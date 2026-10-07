@@ -1,5 +1,5 @@
 export const runtime = "nodejs24.x";
-export const maxDuration = 60; // في حال كانت خطتك تسمح، وإلا سيعمل بحد 10 ثواني تلقائياً
+export const maxDuration = 300; // في حال كانت خطتك تسمح، وإلا سيعمل بحد 10 ثواني تلقائياً
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"; // تم تصحيح الموديل
 
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
     // استخدام الواجهة القياسية والأسرع
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 55000);
+    const timeout = setTimeout(() => controller.abort(), 240000);
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
