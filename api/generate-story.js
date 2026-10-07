@@ -1,3 +1,4 @@
+export const runtime = "nodejs24.x";
 export const maxDuration = 60; // في حال كانت خطتك تسمح، وإلا سيعمل بحد 10 ثواني تلقائياً
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"; // تم تصحيح الموديل
