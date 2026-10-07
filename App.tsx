@@ -40,6 +40,9 @@ export default function App() {
   const [filmGenerating, setFilmGenerating] = useState(false);
   const [filmProgress, setFilmProgress] = useState(0);
   const [filmError, setFilmError] = useState("");
+  const [freeVideoGenerating, setFreeVideoGenerating] = useState(false);
+  const [freeVideoUrl, setFreeVideoUrl] = useState("");
+  const [freeVideoError, setFreeVideoError] = useState("");
 
   const visible = useMemo(() => filter === "الكل" ? characters : characters.filter((c) => c[3] === filter), [filter]);
   const price = duration <= 1 ? 0 : duration;
@@ -75,6 +78,61 @@ export default function App() {
       setError(e instanceof Error ? e.message : "تعذر إنشاء القصة.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function createFreeVideo() {
+    if (!story?.scenes?.length || freeVideoGenerating) return;
+    setFreeVideoGenerating(true); setFreeVideoError(""); setFreeVideoUrl("");
+    try {
+      const scene = story.scenes[0];
+      const prompt = [
+        "Cinematic movie shot, photorealistic, high detail, professional film production, 16:9 landscape.",
+        "Keep character identity and visual continuity consistent.",
+        "Location: " + scene.location + ". Action: " + scene.action + ". Camera: " + scene.camera + ". Lighting: " + scene.lighting + ". Sound/mood: " + scene.sound + ". Visual direction: " + scene.visualPrompt,
+        "Natural realistic motion, cinematic camera movement, coherent anatomy, no subtitles, no text, no watermark."
+      ].join(" ");
+      const response = await fetch("https://kingnish-wan2-2-fast.hf.space/gradio_api/call/generate_video", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ data: [prompt, "low quality, blurry, distorted anatomy, extra fingers, duplicate people, subtitles, text, watermark, static image", 3.5, 1, 3, 4, Math.floor(Math.random() * 2147483647), true] })
+      });
+      const created = await response.json().catch(() => ({}));
+      if (!response.ok || !created?.event_id) throw new Error(created?.error || "تعذر إرسال الفيديو المجاني إلى ZeroGPU.");
+      const eventResponse = await fetch("https://kingnish-wan2-2-fast.hf.space/gradio_api/call/generate_video/" + encodeURIComponent(created.event_id), { headers: { "accept": "text/event-stream" } });
+      if (!eventResponse.ok || !eventResponse.body) throw new Error("تعذر متابعة طابور ZeroGPU.");
+      const reader = eventResponse.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let videoUrl = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+        for (const event of events) {
+          const dataLine = event.split("\n").find((line) => line.startsWith("data:"));
+          if (!dataLine) continue;
+          const payload = dataLine.slice(5).trim();
+          if (!payload || payload === "null") continue;
+          let parsed: any;
+          try { parsed = JSON.parse(payload); } catch { continue; }
+          if (event.includes("error")) throw new Error(typeof parsed === "string" ? parsed : "فشل توليد الفيديو المجاني.");
+          if (event.includes("complete") && Array.isArray(parsed)) {
+            const first = parsed[0];
+            if (typeof first === "string") videoUrl = first;
+            else if (first?.url) videoUrl = first.url;
+            else if (first?.path) videoUrl = "https://kingnish-wan2-2-fast.hf.space/file=" + first.path;
+          }
+        }
+      }
+      if (!videoUrl) throw new Error("انتهى الطلب دون رابط فيديو. قد تكون حصة ZeroGPU ممتلئة أو الطابور مزدحمًا.");
+      setFreeVideoUrl(videoUrl);
+    } catch (e) {
+      setFreeVideoError(e instanceof Error ? e.message : "تعذر إنشاء الفيديو المجاني.");
+    } finally {
+      setFreeVideoGenerating(false);
     }
   }
 
@@ -129,7 +187,7 @@ export default function App() {
 
   function reset() {
     setIdea(""); setCharacter(""); setCustomCharacter(""); setStyle("سينمائي"); setGenre("فيلم سينمائي");
-    setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea");
+    setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea"); setFreeVideoUrl(""); setFreeVideoError("");
   }
 
   return <main dir="rtl" className="min-h-screen bg-slate-950 text-white">
@@ -200,10 +258,19 @@ export default function App() {
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">القصة</h3><p className="mt-2">{story.story.beginning}</p><p className="mt-2">{story.story.middle}</p><p className="mt-2">{story.story.climax}</p><p className="mt-2">{story.story.ending}</p></article>
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">الشخصيات</h3>{story.characters.map((c) => <div key={c.name} className="mt-3 border-b border-white/10 pb-3"><b>{c.name}</b> — {c.role}<div className="text-sm text-slate-400">{c.visual}</div></div>)}</article>
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">المشاهد ({story.scenes.length})</h3>{story.scenes.map((s) => <div key={s.number} className="mt-3 rounded-xl border border-white/10 p-4"><b>المشهد {s.number}: {s.location}</b><p className="mt-1 text-sm">{s.action}</p><p className="mt-1 text-xs text-slate-500">الكاميرا: {s.camera} • الصوت: {s.sound}</p></div>)}</article>
+          <article className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5">
+            <h3 className="text-xl font-bold">🆓 تجربة فيديو مجانية من داخل اسألني AI</h3>
+            <p className="mt-2 text-sm text-slate-300">سنحوّل المشهد الأول من القصة إلى مقطع سينمائي قصير باستخدام Wan 2.2 Text-to-Video على Hugging Face ZeroGPU، بدون Runway وبدون رصيد OpenAI.</p>
+            <button disabled={freeVideoGenerating} onClick={createFreeVideo} className="mt-4 w-full rounded-2xl bg-emerald-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{freeVideoGenerating ? "⏳ جارٍ انتظار ZeroGPU..." : "🎥 إنشاء أول مشهد مجانًا"}</button>
+            {freeVideoError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{freeVideoError}</div>}
+            {freeVideoUrl && <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-slate-950"><video controls playsInline preload="metadata" src={freeVideoUrl} className="w-full" /><div className="p-3 text-xs text-slate-400">تم إنشاء المقطع المجاني من المشهد الأول.</div></div>}
+            <p className="mt-3 text-xs text-slate-500">ZeroGPU مجاني لكن الحصة اليومية محدودة، وقد يزداد وقت الانتظار عند ازدحام الطابور.</p>
+          </article>
+
           <article className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
-            <h3 className="text-xl font-bold">🎬 تصنيع الفيلم بأسلوب الأفلام التي أرسلتها</h3>
+            <h3 className="text-xl font-bold">🎬 تصنيع الفيلم الكامل</h3>
             <p className="mt-2 text-sm text-slate-300">يحوّل المشاهد إلى مقاطع سينمائية 16:9 متتابعة مع حركة كاميرا وإضاءة وصوت، ثم يعرض المقاطع بالترتيب. هذا هو مسار التصنيع الفعلي، وليس مجرد كتابة قصة.</p>
-            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المحرك المدفوع: Runway. وللتجربة المجانية من الجوال استخدم محرك Wan 2.2 ZeroGPU أعلاه؛ حصة الحساب المجاني محدودة يوميًا.</div>
+            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المسار المدفوع: Runway. أما المسار المجاني الآن فيستخدم Wan 2.2 عبر ZeroGPU من داخل التطبيق. المقطع المجاني قصير لأن الحصة اليومية محدودة.</div>
             <button disabled={filmGenerating} onClick={createFilm} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{filmGenerating ? "🎞️ جارٍ تصنيع الفيلم... " + filmProgress + "%" : "🎥 ابدأ تصنيع الفيلم"}</button>
             {filmError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{filmError}</div>}
             {filmSegments.length > 0 && <div className="mt-4 space-y-4">
