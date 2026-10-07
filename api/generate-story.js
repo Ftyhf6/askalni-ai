@@ -33,12 +33,15 @@ export default async function handler(req, res) {
     const user = "فكرة المستخدم: " + body.idea.trim() + "\nالشخصية: " + (body.character || "اختر الشخصيات المناسبة") + "\nالنمط: " + (body.style || "سينمائي") + "\nالنوع: " + (body.genre || "فيلم سينمائي") + "\nالمدة: " + duration + " دقيقة\nاللغة: " + (body.language || "العربية") + "\nالوضع الديني: " + (body.religiousMode ? "مفعّل" : "غير مفعّل");
 
     // استخدام الواجهة القياسية والأسرع
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + apiKey
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: model,
         response_format: { type: "json_object" }, // يضمن إرجاع JSON صالح
@@ -48,6 +51,8 @@ export default async function handler(req, res) {
         ]
       })
     });
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -70,19 +75,60 @@ export default async function handler(req, res) {
       });
     }
 
-    // محاولة تحويل النص إلى JSON
-    let story;
+    // تحويل JSON مع تطبيع الحقول حتى لا تنهار الواجهة إذا كان الرد ناقصًا.
+    let parsed;
     try {
-      story = JSON.parse(text);
+      parsed = JSON.parse(text);
     } catch (e) {
-      // في حال وجود أي نص إضافي
-      const start = text.indexOf("{"); 
-      const end = text.lastIndexOf("}");
-      if (start >= 0 && end > start) {
-        story = JSON.parse(text.slice(start, end + 1));
-      } else {
-        throw new Error("Invalid JSON response from AI");
+      const startJson = text.indexOf("{");
+      const endJson = text.lastIndexOf("}");
+      if (startJson >= 0 && endJson > startJson) parsed = JSON.parse(text.slice(startJson, endJson + 1));
+      else throw new Error("Invalid JSON response from AI");
+    }
+
+    const asText = (value) => typeof value === "string" ? value : "";
+    const asArray = (value) => Array.isArray(value) ? value : [];
+    const story = {
+      title: asText(parsed.title) || "قصة جديدة",
+      logline: asText(parsed.logline),
+      genre: asText(parsed.genre) || String(body.genre || "فيلم سينمائي"),
+      durationMinutes: Math.min(60, Math.max(1, Number(parsed.durationMinutes) || duration)),
+      assumptions: asArray(parsed.assumptions).map(String),
+      religiousNotes: asArray(parsed.religiousNotes).map(String),
+      characters: asArray(parsed.characters).map((c) => ({
+        name: asText(c?.name) || "شخصية",
+        role: asText(c?.role),
+        visual: asText(c?.visual),
+        personality: asText(c?.personality)
+      })),
+      world: asText(parsed.world),
+      story: {
+        beginning: asText(parsed.story?.beginning),
+        middle: asText(parsed.story?.middle),
+        climax: asText(parsed.story?.climax),
+        ending: asText(parsed.story?.ending)
+      },
+      scenes: asArray(parsed.scenes).map((scene, index) => ({
+        number: Number(scene?.number) || index + 1,
+        durationSeconds: Number(scene?.durationSeconds) || 5,
+        location: asText(scene?.location),
+        action: asText(scene?.action),
+        dialogue: asText(scene?.dialogue),
+        camera: asText(scene?.camera),
+        lighting: asText(scene?.lighting),
+        sound: asText(scene?.sound),
+        visualPrompt: asText(scene?.visualPrompt)
+      })),
+      productionPlan: {
+        imageStyle: asText(parsed.productionPlan?.imageStyle),
+        videoStyle: asText(parsed.productionPlan?.videoStyle),
+        audioStyle: asText(parsed.productionPlan?.audioStyle),
+        continuity: asText(parsed.productionPlan?.continuity)
       }
+    };
+
+    if (!story.scenes.length) {
+      return res.status(502).json({ error: "محرك الذكاء الاصطناعي أعاد قصة بلا مشاهد قابلة للإنتاج.", code: "AI_INVALID_STORY" });
     }
 
     return res.status(200).json({ story });
