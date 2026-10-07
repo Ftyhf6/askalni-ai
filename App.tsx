@@ -36,6 +36,10 @@ export default function App() {
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
   const [story, setStory] = useState<Story | null>(null);
+  const [filmSegments, setFilmSegments] = useState<{ index: number; taskId: string; status: string; url?: string }[]>([]);
+  const [filmGenerating, setFilmGenerating] = useState(false);
+  const [filmProgress, setFilmProgress] = useState(0);
+  const [filmError, setFilmError] = useState("");
 
   const visible = useMemo(() => filter === "الكل" ? characters : characters.filter((c) => c[3] === filter), [filter]);
   const price = duration <= 1 ? 0 : duration;
@@ -71,6 +75,51 @@ export default function App() {
       setError(e instanceof Error ? e.message : "تعذر إنشاء القصة.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function createFilm() {
+    if (!story?.scenes?.length || filmGenerating) return;
+    setFilmGenerating(true); setFilmError(""); setFilmSegments([]); setFilmProgress(0);
+    try {
+      const scenes = story.scenes;
+      const groups: typeof scenes[] = [];
+      for (let i = 0; i < scenes.length; i += 3) groups.push(scenes.slice(i, i + 3));
+      const completed: { index: number; taskId: string; status: string; url?: string }[] = [];
+      for (let i = 0; i < groups.length; i++) {
+        const group = groups[i];
+        const shots = group.map((scene) => ({
+          prompt: [
+            "Cinematic Hollywood-style fantasy/action film, photorealistic, highly detailed, consistent characters and world, dramatic lighting, realistic materials, natural motion, professional cinematography.",
+            "Keep the same character appearance, wardrobe, environment and visual language across the whole film.",
+            "Location: " + scene.location + ". Action: " + scene.action + ". Dialogue: " + scene.dialogue + ". Camera: " + scene.camera + ". Lighting: " + scene.lighting + ". Sound: " + scene.sound + ". Visual direction: " + scene.visualPrompt,
+          ].join(" "),
+          duration: 5,
+        }));
+        while (shots.length < 3) shots.push({ prompt: "Cinematic establishing transition shot matching the previous scene, same characters and environment, realistic film production.", duration: 5 });
+        const createResponse = await fetch("/api/generate-film-segment", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ shots, audio: true }),
+        });
+        const created = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok) throw new Error(created?.error || "تعذر بدء تصنيع مقطع الفيلم.");
+        let status = "PENDING"; let url: string | undefined;
+        while (!["SUCCEEDED", "FAILED", "CANCELED"].includes(status)) {
+          await new Promise((r) => setTimeout(r, 6000));
+          const statusResponse = await fetch("/api/video-status?taskId=" + encodeURIComponent(created.taskId));
+          const data = await statusResponse.json().catch(() => ({}));
+          if (!statusResponse.ok) throw new Error(data?.error || "تعذر متابعة تصنيع الفيلم.");
+          status = data.status; url = data.output?.[0];
+        }
+        if (status !== "SUCCEEDED" || !url) throw new Error("فشل تصنيع المقطع " + (i + 1) + ".");
+        const item = { index: i + 1, taskId: created.taskId, status, url };
+        completed.push(item); setFilmSegments([...completed]); setFilmProgress(Math.round(((i + 1) / groups.length) * 100));
+      }
+    } catch (e) {
+      setFilmError(e instanceof Error ? e.message : "تعذر تصنيع الفيلم.");
+    } finally {
+      setFilmGenerating(false);
     }
   }
 
@@ -137,9 +186,24 @@ export default function App() {
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">القصة</h3><p className="mt-2">{story.story.beginning}</p><p className="mt-2">{story.story.middle}</p><p className="mt-2">{story.story.climax}</p><p className="mt-2">{story.story.ending}</p></article>
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">الشخصيات</h3>{story.characters.map((c) => <div key={c.name} className="mt-3 border-b border-white/10 pb-3"><b>{c.name}</b> — {c.role}<div className="text-sm text-slate-400">{c.visual}</div></div>)}</article>
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">المشاهد ({story.scenes.length})</h3>{story.scenes.map((s) => <div key={s.number} className="mt-3 rounded-xl border border-white/10 p-4"><b>المشهد {s.number}: {s.location}</b><p className="mt-1 text-sm">{s.action}</p><p className="mt-1 text-xs text-slate-500">الكاميرا: {s.camera} • الصوت: {s.sound}</p></div>)}</article>
+          <article className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
+            <h3 className="text-xl font-bold">🎬 تصنيع الفيلم بأسلوب الأفلام التي أرسلتها</h3>
+            <p className="mt-2 text-sm text-slate-300">يحوّل المشاهد إلى مقاطع سينمائية 16:9 متتابعة مع حركة كاميرا وإضاءة وصوت، ثم يعرض المقاطع بالترتيب. هذا هو مسار التصنيع الفعلي، وليس مجرد كتابة قصة.</p>
+            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المحرك: Runway • جودة سينمائية • كل مقطع 15 ثانية • الفيلم الطويل يُبنى من عدة مقاطع.</div>
+            <button disabled={filmGenerating} onClick={createFilm} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{filmGenerating ? "🎞️ جارٍ تصنيع الفيلم... " + filmProgress + "%" : "🎥 ابدأ تصنيع الفيلم"}</button>
+            {filmError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{filmError}</div>}
+            {filmSegments.length > 0 && <div className="mt-4 space-y-4">
+              <div className="text-sm text-slate-300">تم تصنيع {filmSegments.length} مقطعًا.</div>
+              {filmSegments.map((seg) => <div key={seg.taskId} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950">
+                <div className="px-3 py-2 text-xs text-slate-400">المقطع {seg.index}</div>
+                <video controls playsInline preload="metadata" src={seg.url} className="w-full" />
+              </div>)}
+            </div>}
+            <p className="mt-3 text-xs text-slate-500">ملاحظة: روابط الفيديو من مزود التوليد مؤقتة، لذلك مرحلة الإنتاج النهائية ستحتاج تخزينًا دائمًا وتجميع المقاطع في ملف MP4 واحد.</p>
+          </article>
           {religiousMode && story.religiousNotes.length > 0 && <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">ملاحظات الوضع الديني</h3>{story.religiousNotes.map((n, i) => <p key={i} className="mt-2 text-sm">{n}</p>)}</article>}
         </div>
-        <p className="mt-5 text-sm text-slate-300">تم إنشاء القصة وخطة الفيلم. إخراج فيديو فعلي يحتاج ربط مولد الفيديو والصور والصوت في المرحلة التالية.</p>
+        <p className="mt-5 text-sm text-slate-300">تم إنشاء القصة والمشاهد، ويمكن الآن تشغيل مرحلة تصنيع الفيديو الفعلية من قسم «تصنيع الفيلم» أعلاه.</p>
         <button onClick={reset} className="mt-4 rounded-2xl bg-white px-5 py-3 font-bold text-slate-950">إنشاء عمل جديد</button>
       </section>}
 
