@@ -131,7 +131,7 @@ export default function App() {
   return <main dir="rtl" className="min-h-screen bg-slate-950 text-white">
     <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
       <header className="mb-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><div className="text-xl font-bold">اسألني AI</div><div className="text-xs text-slate-400">من الفكرة إلى قصة وخطة فيلم</div></div>
+        <div><div className="text-xl font-bold">اسألني AI</div><div className="text-xs text-slate-400">من الفكرة إلى القصة أولًا ثم صناعة الفيلم</div></div>
         <div className="rounded-full bg-amber-400/15 px-3 py-1 text-xs text-amber-200">الدقيقة الأولى مجانية</div>
       </header>
 
@@ -142,7 +142,7 @@ export default function App() {
         <p className="mt-2 text-slate-400">أفلام سينمائية، فانتازيا، خيال علمي، وحوش، رعب، مغامرات، قصص دينية وغيرها.</p>
         <textarea value={idea} onChange={(e) => { setIdea(e.target.value); setError(""); }} placeholder="مثال: أريد فيلماً عن وحش عملاق يظهر في مدينة مستقبلية..." className="mt-5 min-h-44 w-full rounded-2xl border border-white/10 bg-slate-900 p-4 outline-none focus:border-amber-400" />
         <button onClick={nextFromIdea} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950">تحليل الفكرة والمتابعة</button>
-        <p className="mt-3 text-center text-xs text-slate-500">لن يبدأ إنشاء الفيلم قبل مراجعتك وتأكيدك.</p>
+        <p className="mt-3 text-center text-xs text-slate-500">المرحلة الأولى: إنشاء القصة فقط. لن يبدأ تصنيع الفيلم إلا بعد ظهور القصة وضغطك على زر «ابدأ تصنيع الفيلم».</p>
       </section>}
 
       {step === "details" && <section className="space-y-5">
@@ -174,9 +174,9 @@ export default function App() {
       </section>}
 
       {step === "confirm" && <section className="rounded-3xl border border-white/10 bg-white/[0.06] p-6">
-        <div className="text-center"><div className="text-5xl">🎬</div><h2 className="mt-3 text-3xl font-bold">جاهز لإنشاء القصة</h2><p className="mt-2 text-slate-400">سيكتب اسألني القصة من البداية للنهاية، ثم يبني الشخصيات والعالم والمشاهد والحوار والكاميرا والصوت وخطة الإنتاج.</p></div>
+        <div className="text-center"><div className="text-5xl">🎬</div><h2 className="mt-3 text-3xl font-bold">جاهز لإنشاء القصة</h2><p className="mt-2 text-slate-400">سيتم الآن إنشاء القصة فقط، مع الشخصيات والعالم والمشاهد اللازمة لاحقًا للإنتاج. بعد ظهور القصة ستقرر أنت متى يبدأ تصنيع الفيلم.</p></div>
         <div className="mt-6 rounded-2xl bg-slate-900 p-5 text-sm">التكلفة: <b>{price === 0 ? "مجاني" : "$" + price}</b></div>
-        <button disabled={generating} onClick={generate} className="mt-5 w-full rounded-2xl bg-emerald-400 px-5 py-4 font-bold text-slate-950 disabled:opacity-60">{generating ? "⏳ جارٍ إنشاء القصة والمشاهد..." : "ابدأ إنشاء القصة والفيلم"}</button>
+        <button disabled={generating} onClick={generate} className="mt-5 w-full rounded-2xl bg-emerald-400 px-5 py-4 font-bold text-slate-950 disabled:opacity-60">{generating ? "⏳ جارٍ إنشاء القصة فقط..." : "✍️ ابدأ إنشاء القصة"}</button>
         <button onClick={() => setStep("details")} className="mt-3 w-full rounded-2xl border border-white/10 px-5 py-3">العودة للتعديل</button>
       </section>}
 
@@ -203,7 +203,7 @@ export default function App() {
           </article>
           {religiousMode && story.religiousNotes.length > 0 && <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">ملاحظات الوضع الديني</h3>{story.religiousNotes.map((n, i) => <p key={i} className="mt-2 text-sm">{n}</p>)}</article>}
         </div>
-        <p className="mt-5 text-sm text-slate-300">تم إنشاء القصة والمشاهد، ويمكن الآن تشغيل مرحلة تصنيع الفيديو الفعلية من قسم «تصنيع الفيلم» أعلاه.</p>
+        <p className="mt-5 text-sm text-slate-300">تم إنشاء القصة أولًا بنجاح. تصنيع الفيلم مرحلة منفصلة ولا يبدأ تلقائيًا. اضغط «ابدأ تصنيع الفيلم» فقط عندما تريد تحويل هذه القصة إلى فيديو.</p>
         <button onClick={reset} className="mt-4 rounded-2xl bg-white px-5 py-3 font-bold text-slate-950">إنشاء عمل جديد</button>
       </section>}
 
