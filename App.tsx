@@ -135,9 +135,19 @@ export default function App() {
   return <main dir="rtl" className="min-h-screen bg-slate-950 text-white">
     <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
       <header className="mb-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><div className="text-xl font-bold">اسألني AI</div><div className="text-xs text-slate-400">من الفكرة إلى القصة أولًا ثم صناعة الفيلم</div></div>
-        <div className="rounded-full bg-amber-400/15 px-3 py-1 text-xs text-amber-200">الدقيقة الأولى مجانية</div>
+        <div><div className="text-xl font-bold">اسألني AI</div><div className="text-xs text-slate-400">صناعة أفلام بالذكاء الاصطناعي من الجوال</div></div>
+        <div className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs text-emerald-200">وضع الفيديو المجاني</div>
       </header>
+      <section className="mb-6 rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold">🎬 محرك الفيديو المجاني</h2>
+            <p className="mt-2 text-sm text-slate-300">يعمل عبر Hugging Face ZeroGPU من الهاتف، باستخدام نماذج فيديو مفتوحة. لا يحتاج Runway أو رصيد OpenAI.</p>
+            <p className="mt-2 text-xs text-slate-400">الحساب المجاني له حصة GPU يومية محدودة، لذلك لا نعد بفيديوهات مجانية بلا حدود.</p>
+          </div>
+          <a href="https://huggingface.co/spaces/zerogpu-aoti/wan2-2-fp8da-aoti-faster" target="_blank" rel="noreferrer" className="shrink-0 rounded-2xl bg-emerald-400 px-5 py-3 text-center font-bold text-slate-950">فتح Wan 2.2 المجاني</a>
+        </div>
+      </section>
 
       {error && <div role="alert" className="mb-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</div>}
 
@@ -193,7 +203,7 @@ export default function App() {
           <article className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
             <h3 className="text-xl font-bold">🎬 تصنيع الفيلم بأسلوب الأفلام التي أرسلتها</h3>
             <p className="mt-2 text-sm text-slate-300">يحوّل المشاهد إلى مقاطع سينمائية 16:9 متتابعة مع حركة كاميرا وإضاءة وصوت، ثم يعرض المقاطع بالترتيب. هذا هو مسار التصنيع الفعلي، وليس مجرد كتابة قصة.</p>
-            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المحرك: Runway • جودة سينمائية • كل مقطع 15 ثانية • الفيلم الطويل يُبنى من عدة مقاطع.</div>
+            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المحرك المدفوع: Runway. وللتجربة المجانية من الجوال استخدم محرك Wan 2.2 ZeroGPU أعلاه؛ حصة الحساب المجاني محدودة يوميًا.</div>
             <button disabled={filmGenerating} onClick={createFilm} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{filmGenerating ? "🎞️ جارٍ تصنيع الفيلم... " + filmProgress + "%" : "🎥 ابدأ تصنيع الفيلم"}</button>
             {filmError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{filmError}</div>}
             {filmSegments.length > 0 && <div className="mt-4 space-y-4">
