@@ -105,14 +105,18 @@ export default function App() {
         const created = await createResponse.json().catch(() => ({}));
         if (!createResponse.ok) throw new Error(created?.error || "تعذر بدء تصنيع مقطع الفيلم.");
         let status = "PENDING"; let url: string | undefined;
+        const deadline = Date.now() + 10 * 60 * 1000;
         while (!["SUCCEEDED", "FAILED", "CANCELED"].includes(status)) {
+          if (Date.now() > deadline) throw new Error("انتهت مهلة انتظار المقطع " + (i + 1) + ". أعد المحاولة لاحقًا.");
           await new Promise((r) => setTimeout(r, 6000));
-          const statusResponse = await fetch("/api/video-status?taskId=" + encodeURIComponent(created.taskId));
+          const statusResponse = await fetch("/api/video-status?taskId=" + encodeURIComponent(created.taskId), { cache: "no-store" });
           const data = await statusResponse.json().catch(() => ({}));
           if (!statusResponse.ok) throw new Error(data?.error || "تعذر متابعة تصنيع الفيلم.");
-          status = data.status; url = data.output?.[0];
+          status = data.status;
+          url = Array.isArray(data.output) ? data.output[0] : undefined;
+          if (["FAILED", "CANCELED"].includes(status)) throw new Error(data.failure || ("فشل تصنيع المقطع " + (i + 1) + "."));
         }
-        if (status !== "SUCCEEDED" || !url) throw new Error("فشل تصنيع المقطع " + (i + 1) + ".");
+        if (status !== "SUCCEEDED" || !url) throw new Error("اكتمل الطلب دون رابط فيديو للمقطع " + (i + 1) + ".");
         const item = { index: i + 1, taskId: created.taskId, status, url };
         completed.push(item); setFilmSegments([...completed]); setFilmProgress(Math.round(((i + 1) / groups.length) * 100));
       }
