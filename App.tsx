@@ -45,7 +45,7 @@ export default function App() {
   const [freeVideoError, setFreeVideoError] = useState("");
 
   const visible = useMemo(() => filter === "الكل" ? characters : characters.filter((c) => c[3] === filter), [filter]);
-  const price = duration <= 1 ? 0 : duration;
+  const price = 0; // لا توجد رسوم أو استدعاءات API مدفوعة في وضع المجاني
 
   function nextFromIdea() {
     if (idea.trim().length < 10) return setError("اكتب فكرة واضحة من 10 أحرف على الأقل.");
@@ -137,6 +137,10 @@ export default function App() {
   }
 
   async function createFilm() {
+    // Safety guard: the old full-film route uses Runway and may incur charges.
+    // Never call it from the free-only app.
+    setFilmError("تصنيع الفيلم الكامل داخل التطبيق غير مفعّل في الوضع المجاني بعد؛ لم يتم إرسال أي طلب إلى Runway أو أي خدمة مدفوعة. يمكنك تجربة مشهد قصير من زر Wan 2.2 المجاني أعلاه.");
+    return;
     if (!story?.scenes?.length || filmGenerating) return;
     setFilmGenerating(true); setFilmError(""); setFilmSegments([]); setFilmProgress(0);
     try {
@@ -233,7 +237,7 @@ export default function App() {
             <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">نوع العمل</span><select value={genre} onChange={(e) => setGenre(e.target.value)} className="mt-2 w-full bg-transparent font-bold outline-none">{genres.map((x) => <option key={x}>{x}</option>)}</select></label>
             <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">المدة</span><input type="number" min={1} max={60} value={duration} onChange={(e) => setDuration(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} className="mt-2 w-full bg-transparent text-2xl font-bold outline-none" /></label>
             <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">اللغة</span><select value={language} onChange={(e) => setLanguage(e.target.value)} className="mt-2 w-full bg-transparent font-bold outline-none"><option>العربية</option><option>English</option><option>اردو</option><option>کوردی</option></select></label>
-            <div className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">التكلفة</span><div className="mt-2 text-2xl font-bold">{price === 0 ? "مجاني" : "$" + price}</div><div className="text-xs text-slate-500">أول دقيقة مجانية، ثم $1 لكل دقيقة إضافية.</div></div>
+            <div className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">التكلفة</span><div className="mt-2 text-2xl font-bold">{price === 0 ? "مجاني" : "$" + price}</div><div className="text-xs text-slate-500">لا توجد رسوم ولا حاجة إلى مفتاح API مدفوع.</div></div>
           </div>
           <button onClick={() => setReligiousMode(!religiousMode)} className={"mt-4 w-full rounded-2xl px-4 py-3 text-right " + (religiousMode ? "bg-amber-400 text-slate-950" : "bg-slate-900 text-slate-300")}>{religiousMode ? "الوضع الديني مفعّل — ضوابط خاصة للأنبياء والمصادر" : "تفعيل الوضع الديني عند صناعة قصص الأنبياء"}</button>
         </div>
@@ -269,9 +273,9 @@ export default function App() {
 
           <article className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
             <h3 className="text-xl font-bold">🎬 تصنيع الفيلم الكامل</h3>
-            <p className="mt-2 text-sm text-slate-300">يحوّل المشاهد إلى مقاطع سينمائية 16:9 متتابعة مع حركة كاميرا وإضاءة وصوت، ثم يعرض المقاطع بالترتيب. هذا هو مسار التصنيع الفعلي، وليس مجرد كتابة قصة.</p>
-            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المسار المدفوع: Runway. أما المسار المجاني الآن فيستخدم Wan 2.2 عبر ZeroGPU من داخل التطبيق. المقطع المجاني قصير لأن الحصة اليومية محدودة.</div>
-            <button disabled={filmGenerating} onClick={createFilm} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{filmGenerating ? "🎞️ جارٍ تصنيع الفيلم... " + filmProgress + "%" : "🎥 ابدأ تصنيع الفيلم"}</button>
+            <p className="mt-2 text-sm text-slate-300">يحوّل المشاهد إلى مقاطع سينمائية 16:9 متتابعة مع حركة كاميرا وإضاءة وصوت، ثم يعرض المقاطع بالترتيب. مسار التصنيع الكامل يحتاج إلى دمج مجاني موثوق لكل المشاهد؛ لن نستدعي Runway المدفوع في هذا الوضع.</p>
+            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">تم تعطيل مسار Runway المدفوع لحمايتك من أي رسوم. سيبقى زر الفيلم الكامل غير متاح حتى يكتمل ربط مسار مجاني موثوق.</div>
+            <button disabled={filmGenerating} onClick={createFilm} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{filmGenerating ? "🎞️ جارٍ تصنيع الفيلم... " + filmProgress + "%" : "🎥 حالة تصنيع الفيلم الكامل"}</button>
             {filmError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{filmError}</div>}
             {filmSegments.length > 0 && <div className="mt-4 space-y-4">
               <div className="text-sm text-slate-300">تم تصنيع {filmSegments.length} مقطعًا.</div>
