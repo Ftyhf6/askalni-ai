@@ -185,6 +185,62 @@ export default function App() {
     }
   }
 
+  function exportStory() {
+    if (!story) return;
+    const lines = [
+      story.title,
+      story.logline,
+      "",
+      "القصة",
+      story.story.beginning,
+      story.story.middle,
+      story.story.climax,
+      story.story.ending,
+      "",
+      "الشخصيات",
+      ...story.characters.map((c) => `${c.name} — ${c.role}\nالمظهر: ${c.visual}\nالشخصية: ${c.personality}`),
+      "",
+      "المشاهد",
+      ...story.scenes.map((s) => [
+        `المشهد ${s.number}: ${s.location} (${s.durationSeconds} ثانية)`,
+        `الحدث: ${s.action}`,
+        `الحوار: ${s.dialogue}`,
+        `الكاميرا: ${s.camera}`,
+        `الإضاءة: ${s.lighting}`,
+        `الصوت: ${s.sound}`,
+        `الوصف البصري: ${s.visualPrompt}`,
+      ].join("\\n")),
+    ];
+    const blob = new Blob([lines.join("\\n\\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${story.title.replace(/[^\\p{L}\\p{N}-]+/gu, "-") || "askalni-story"}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyScenePrompt(scene: Story["scenes"][number]) {
+    const prompt = [
+      `Style: ${style}; Genre: ${genre}; Aspect ratio: 16:9.`,
+      `Location: ${scene.location}`,
+      `Action: ${scene.action}`,
+      `Dialogue: ${scene.dialogue}`,
+      `Camera: ${scene.camera}`,
+      `Lighting: ${scene.lighting}`,
+      `Sound: ${scene.sound}`,
+      `Visual direction: ${scene.visualPrompt}`,
+      "Maintain consistent character identity, wardrobe, and world across scenes. Cinematic composition, natural motion, no unwanted text or watermark."
+    ].join("\\n");
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setError("");
+      window.alert("تم نسخ وصف المشهد. يمكنك لصقه في محرك الفيديو أو محرر الذكاء الاصطناعي.");
+    } catch {
+      setError("تعذر النسخ تلقائيًا. افتح الموقع عبر HTTPS ثم أعد المحاولة.");
+    }
+  }
+
   function reset() {
     setIdea(""); setCharacter(""); setCustomCharacter(""); setStyle("سينمائي"); setGenre("فيلم سينمائي");
     setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea"); setFreeVideoUrl(""); setFreeVideoError("");
@@ -253,11 +309,11 @@ export default function App() {
       </section>}
 
       {step === "done" && story && <section className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-6">
-        <div className="text-4xl">🎞️</div><h2 className="mt-2 text-3xl font-bold">{story.title}</h2><p className="mt-2 text-slate-300">{story.logline}</p>
+        <div className="text-4xl">🎞️</div><h2 className="mt-2 text-3xl font-bold">{story.title}</h2><p className="mt-2 text-slate-300">{story.logline}</p><button onClick={exportStory} className="mt-4 w-full rounded-2xl border border-white/15 bg-slate-950/60 px-4 py-3 font-semibold">⬇️ تصدير القصة والمشاهد إلى ملف نصي</button>
         <div className="mt-5 space-y-4 text-right">
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">القصة</h3><p className="mt-2">{story.story.beginning}</p><p className="mt-2">{story.story.middle}</p><p className="mt-2">{story.story.climax}</p><p className="mt-2">{story.story.ending}</p></article>
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">الشخصيات</h3>{story.characters.map((c) => <div key={c.name} className="mt-3 border-b border-white/10 pb-3"><b>{c.name}</b> — {c.role}<div className="text-sm text-slate-400">{c.visual}</div></div>)}</article>
-          <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">المشاهد ({story.scenes.length})</h3>{story.scenes.map((s) => <div key={s.number} className="mt-3 rounded-xl border border-white/10 p-4"><b>المشهد {s.number}: {s.location}</b><p className="mt-1 text-sm">{s.action}</p><p className="mt-1 text-xs text-slate-500">الكاميرا: {s.camera} • الصوت: {s.sound}</p></div>)}</article>
+          <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">المشاهد ({story.scenes.length})</h3>{story.scenes.map((s) => <div key={s.number} className="mt-3 rounded-xl border border-white/10 p-4"><b>المشهد {s.number}: {s.location}</b><p className="mt-1 text-sm">{s.action}</p><p className="mt-1 text-xs text-slate-500">الكاميرا: {s.camera} • الصوت: {s.sound}</p><button onClick={() => copyScenePrompt(s)} className="mt-3 rounded-xl border border-white/10 px-3 py-2 text-sm text-amber-200">نسخ وصف المشهد لمحرك الفيديو</button></div>)}</article>
           <article className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5">
             <h3 className="text-xl font-bold">🆓 تجربة فيديو مجانية من داخل اسألني AI</h3>
             <p className="mt-2 text-sm text-slate-300">سنحوّل المشهد الأول من القصة إلى مقطع سينمائي قصير باستخدام Wan 2.2 Text-to-Video على Hugging Face ZeroGPU، بدون Runway وبدون رصيد OpenAI.</p>
