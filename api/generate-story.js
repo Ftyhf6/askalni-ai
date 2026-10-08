@@ -1,142 +1,131 @@
 export const runtime = "nodejs24.x";
-export const maxDuration = 300; // في حال كانت خطتك تسمح، وإلا سيعمل بحد 10 ثواني تلقائياً
+export const maxDuration = 10;
 
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"; // تم تصحيح الموديل
+// Free, deterministic story engine: deliberately makes no paid API calls and
+// does not require OPENAI_API_KEY, RUNWAYML_API_SECRET, or any other secret.
+const text = (value, fallback = "") =>
+  typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+function buildFreeStory(body) {
+  const idea = text(body.idea, "مغامرة غير متوقعة");
+  const character = text(body.character, "بطل شجاع يبحث عن الحقيقة");
+  const style = text(body.style, "سينمائي");
+  const genre = text(body.genre, "فيلم سينمائي");
+  const language = text(body.language, "العربية");
+  const duration = Math.min(60, Math.max(1, Number(body.duration) || 1));
+  const religiousMode = Boolean(body.religiousMode);
+  const sceneCount = Math.min(8, Math.max(3, Math.ceil(duration / 2) + 2));
+
+  const title = "حكاية " + idea.slice(0, 48);
+  const characters = [
+    {
+      name: character,
+      role: "الشخصية الرئيسية",
+      visual: "تصميم بصري بأسلوب " + style + "، مع ملامح وملابس ثابتة في جميع المشاهد.",
+      personality: "فضولي، شجاع، ويتعلم من نتائج قراراته."
+    },
+    {
+      name: "رفيق الرحلة",
+      role: "مساعد البطل",
+      visual: "شخصية مساندة متناسقة مع عالم القصة وألوانه.",
+      personality: "عملي وهادئ، يساعد البطل على رؤية حلول جديدة."
+    },
+    {
+      name: "صاحب العقبة",
+      role: "الشخصية التي تعقّد المهمة",
+      visual: "مظهر مميز يسهل التعرف عليه في كل مشهد.",
+      personality: "له دافع واضح، وليس مجرد عقبة بلا سبب."
+    }
+  ];
+
+  const beats = [
+    ["بداية الحكاية", "في عالم " + style + "، تبدأ الأحداث عندما يواجه " + character + " موقفًا غير عادي مرتبطًا بالفكرة: " + idea + ". يلاحظ البطل علامة صغيرة تكشف أن الأمر أكبر مما يبدو."],
+    ["قرار صعب", "يحاول البطل فهم ما حدث، ويقابل رفيق الرحلة. تظهر معلومات جديدة وتصبح أمامهما خيارات متعارضة، فيقرران متابعة الأثر بدل التراجع."],
+    ["تصاعد الخطر", "تقودهما الأدلة إلى مكان غير مألوف. تظهر عقبة غير متوقعة، ويكتشف البطل أن الحل السهل قد يسبب ضررًا لشخص آخر."],
+    ["كشف الحقيقة", "تظهر حقيقة تغيّر فهم البطل للمشكلة. يواجه صاحب العقبة، ويكتشف أن وراء تصرفاته سببًا يحتاج إلى المواجهة لا إلى القوة وحدها."],
+    ["الذروة", "تصل الأحداث إلى لحظة حاسمة؛ يضطر البطل إلى الاختيار بين مصلحته الشخصية وما يراه صوابًا. يتعاون الرفيق معه وتُحسم المواجهة بفعل واضح."],
+    ["الخاتمة", "بعد انحسار الخطر، يعالج الأبطال آثار ما حدث. يعود البطل إلى حياته بتغيير ملموس، وتترك النهاية بابًا لمغامرة جديدة دون أن تلغي اكتمال هذه الحكاية."]
+  ];
+
+  const scenes = [];
+  for (let i = 0; i < sceneCount; i++) {
+    const beat = beats[Math.min(i, beats.length - 1)];
+    const seconds = Math.max(5, Math.round((duration * 60) / sceneCount));
+    scenes.push({
+      number: i + 1,
+      durationSeconds: seconds,
+      location: [
+        "المكان الرئيسي",
+        "ممر أو طريق إلى الهدف",
+        "موقع يكشف أول دليل",
+        "مكان المواجهة",
+        "ساحة الذروة",
+        "مكان هادئ بعد الأحداث",
+        "موقع جديد مرتبط بالنهاية",
+        "لقطة ختامية واسعة"
+      ][i] || "موقع مرتبط بالأحداث",
+      action: beat[1],
+      dialogue: i === 0
+        ? "البطل: لا بد أن أفهم ما الذي يحدث."
+        : i === sceneCount - 1
+          ? "البطل: لم يتغير العالم وحده؛ لقد تغيرت أنا أيضًا."
+          : "الرفيق: لن نصل إلى الحقيقة إلا إذا عملنا معًا.",
+      camera: i === 0 ? "لقطة تأسيسية واسعة ثم اقتراب بطيء من البطل." : i === sceneCount - 1 ? "لقطة واسعة هادئة ثم تلاشي تدريجي." : "حركة تتبع ناعمة، ثم لقطة متوسطة لردود الفعل.",
+      lighting: "إضاءة سينمائية متناسقة مع المزاج، مع الحفاظ على ألوان الشخصيات بين اللقطات.",
+      sound: "مؤثرات بيئية خفيفة وموسيقى أصلية تتصاعد مع الحدث ثم تهدأ.",
+      visualPrompt: "مشهد " + genre + " بأسلوب " + style + ". الفكرة: " + idea + ". الشخصية الرئيسية: " + character + ". " + beat[1] + " ثبات الوجوه والملابس والألوان، تكوين سينمائي، حركة طبيعية، دون نصوص أو شعارات."
+    });
+  }
+
+  return {
+    title,
+    logline: "رحلة " + character + " لفهم سرّ يبدأ من: " + idea,
+    genre,
+    durationMinutes: duration,
+    assumptions: [
+      "تم إنشاء مسودة مجانية داخل التطبيق دون الاتصال بخدمة API مدفوعة.",
+      "هذه مسودة قصصية أولية؛ قد تحتاج إلى إعادة صياغة يدوية لزيادة التفاصيل والخصوصية."
+    ],
+    religiousNotes: religiousMode
+      ? ["هذه مسودة خيالية وليست مصدرًا تاريخيًا أو دينيًا موثقًا. راجع المصادر الموثوقة قبل نشر أي أحداث دينية، ولا تنسب الإضافات الدرامية إلى الوقائع."]
+      : [],
+    characters,
+    world: "عالم " + style + " يخدم فكرة " + idea + "، مع قواعد بصرية ثابتة حتى يسهل إنتاج المشاهد لاحقًا.",
+    story: {
+      beginning: beats[0][1],
+      middle: beats.slice(1, 4).map((b) => b[1]).join("\n\n"),
+      climax: beats[4][1],
+      ending: beats[5][1]
+    },
+    scenes,
+    productionPlan: {
+      imageStyle: style + "، مع لوحة ألوان ثابتة وتصميم موحد للشخصيات.",
+      videoStyle: "لقطات قصيرة متتابعة، حركة كاميرا واضحة، واستمرارية بصرية بين المشاهد.",
+      audioStyle: "حوار باللغة " + language + " مع مؤثرات بيئية وموسيقى مناسبة للمزاج.",
+      continuity: "ثبّت شكل الشخصية الرئيسية وملابسها والألوان والمواقع بين جميع المشاهد."
+    }
+  };
+}
 
 export default async function handler(req, res) {
-  // التحقق من طريقة الطلب
   if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
-
-  if (!apiKey) {
-    return res.status(503).json({ 
-      error: "محرك الذكاء الاصطناعي غير مفعّل بعد. أضف OPENAI_API_KEY إلى متغيرات Vercel ثم أعد النشر.", 
-      code: "AI_NOT_CONFIGURED" 
-    });
-  }
-
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    
-    if (!body.idea?.trim()) {
-      return res.status(400).json({ error: "اكتب فكرة الفيلم أولاً." });
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    if (typeof body.idea !== "string" || body.idea.trim().length < 10) {
+      return res.status(400).json({ error: "اكتب فكرة واضحة من 10 أحرف على الأقل." });
     }
 
-    const duration = Math.min(60, Math.max(1, Number(body.duration) || 1));
-
-    const system = "أنت محرك اسألني AI لصناعة القصص والأفلام. أنشئ قصة كاملة من البداية إلى النهاية، ثم قسّمها إلى مشاهد مترابطة قابلة للإنتاج. يمكن أن تكون الأعمال سينمائية أو فانتازيا أو خيالاً علمياً أو وحوشاً أو رعباً أو أكشن أو مغامرة أو كوميديا أو تاريخية. حافظ على استمرارية الشخصيات والأماكن. لكل مشهد أدرج الحدث والحوار والكاميرا والإضاءة والصوت ووصفاً بصرياً. عند تفعيل الوضع الديني: لا تعرض الإضافات الدرامية كحقائق، وافصل المادة الموثقة عن الإضافة الدرامية. الأنبياء يمثلون رمزياً كهيئة إنسانية من نور دون ملامح أو تفاصيل جسدية، وليس تصويراً حقيقياً لشكل النبي. أعد JSON فقط بالشكل: {title,logline,genre,durationMinutes,assumptions,religiousNotes,characters:[{name,role,visual,personality}],world,story:{beginning,middle,climax,ending},scenes:[{number,durationSeconds,location,action,dialogue,camera,lighting,sound,visualPrompt}],productionPlan:{imageStyle,videoStyle,audioStyle,continuity}}";
-    
-    const user = "فكرة المستخدم: " + body.idea.trim() + "\nالشخصية: " + (body.character || "اختر الشخصيات المناسبة") + "\nالنمط: " + (body.style || "سينمائي") + "\nالنوع: " + (body.genre || "فيلم سينمائي") + "\nالمدة: " + duration + " دقيقة\nاللغة: " + (body.language || "العربية") + "\nالوضع الديني: " + (body.religiousMode ? "مفعّل" : "غير مفعّل");
-
-    // استخدام الواجهة القياسية والأسرع
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 240000);
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + apiKey
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: model,
-        response_format: { type: "json_object" }, // يضمن إرجاع JSON صالح
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user }
-        ]
-      })
+    return res.status(200).json({
+      story: buildFreeStory(body),
+      provider: "built-in-free-story-engine",
+      note: "وضع مجاني لا يستخدم مفاتيح API مدفوعة. هذا مولّد مسودة قائم على قوالب، وليس نموذجًا لغويًا كبيرًا."
     });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API Error:", errorText);
-      return res.status(502).json({ 
-        error: "تعذر تشغيل محرك الذكاء الاصطناعي.", 
-        providerStatus: response.status 
-      });
-    }
-
-    const data = await response.json();
-    
-    // استخراج النص مباشرة
-    const text = data.choices?.[0]?.message?.content?.trim();
-    
-    if (!text) {
-      return res.status(502).json({ 
-        error: "لم يُرجع محرك الذكاء الاصطناعي نص القصة.", 
-        code: "AI_EMPTY_RESPONSE" 
-      });
-    }
-
-    // تحويل JSON مع تطبيع الحقول حتى لا تنهار الواجهة إذا كان الرد ناقصًا.
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch (e) {
-      const startJson = text.indexOf("{");
-      const endJson = text.lastIndexOf("}");
-      if (startJson >= 0 && endJson > startJson) parsed = JSON.parse(text.slice(startJson, endJson + 1));
-      else throw new Error("Invalid JSON response from AI");
-    }
-
-    const asText = (value) => typeof value === "string" ? value : "";
-    const asArray = (value) => Array.isArray(value) ? value : [];
-    const story = {
-      title: asText(parsed.title) || "قصة جديدة",
-      logline: asText(parsed.logline),
-      genre: asText(parsed.genre) || String(body.genre || "فيلم سينمائي"),
-      durationMinutes: Math.min(60, Math.max(1, Number(parsed.durationMinutes) || duration)),
-      assumptions: asArray(parsed.assumptions).map(String),
-      religiousNotes: asArray(parsed.religiousNotes).map(String),
-      characters: asArray(parsed.characters).map((c) => ({
-        name: asText(c?.name) || "شخصية",
-        role: asText(c?.role),
-        visual: asText(c?.visual),
-        personality: asText(c?.personality)
-      })),
-      world: asText(parsed.world),
-      story: {
-        beginning: asText(parsed.story?.beginning),
-        middle: asText(parsed.story?.middle),
-        climax: asText(parsed.story?.climax),
-        ending: asText(parsed.story?.ending)
-      },
-      scenes: asArray(parsed.scenes).map((scene, index) => ({
-        number: Number(scene?.number) || index + 1,
-        durationSeconds: Number(scene?.durationSeconds) || 5,
-        location: asText(scene?.location),
-        action: asText(scene?.action),
-        dialogue: asText(scene?.dialogue),
-        camera: asText(scene?.camera),
-        lighting: asText(scene?.lighting),
-        sound: asText(scene?.sound),
-        visualPrompt: asText(scene?.visualPrompt)
-      })),
-      productionPlan: {
-        imageStyle: asText(parsed.productionPlan?.imageStyle),
-        videoStyle: asText(parsed.productionPlan?.videoStyle),
-        audioStyle: asText(parsed.productionPlan?.audioStyle),
-        continuity: asText(parsed.productionPlan?.continuity)
-      }
-    };
-
-    if (!story.scenes.length) {
-      return res.status(502).json({ error: "محرك الذكاء الاصطناعي أعاد قصة بلا مشاهد قابلة للإنتاج.", code: "AI_INVALID_STORY" });
-    }
-
-    return res.status(200).json({ story });
-
   } catch (error) {
-    console.error("Story generation error:", error);
-    return res.status(500).json({ 
-      error: "حدث خطأ أثناء إنشاء القصة. تحقق من إعدادات محرك الذكاء الاصطناعي." 
-    });
+    console.error("Free story generation error:", error);
+    return res.status(400).json({ error: "تعذر إنشاء القصة. راجع الفكرة وحاول مرة أخرى." });
   }
 }
