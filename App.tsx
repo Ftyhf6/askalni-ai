@@ -43,6 +43,7 @@ export default function App() {
   const [freeVideoGenerating, setFreeVideoGenerating] = useState(false);
   const [freeVideoUrl, setFreeVideoUrl] = useState("");
   const [freeVideoError, setFreeVideoError] = useState("");
+  const [agnesSegments, setAgnesSegments] = useState<{ index: number; url: string; status: string }[]>([]);
 
   const visible = useMemo(() => filter === "الكل" ? characters : characters.filter((c) => c[3] === filter), [filter]);
   const price = 0;
@@ -83,54 +84,53 @@ export default function App() {
 
   async function createFreeVideo() {
     if (!story?.scenes?.length || freeVideoGenerating) return;
-    setFreeVideoGenerating(true); setFreeVideoError(""); setFreeVideoUrl("");
+    setFreeVideoGenerating(true);
+    setFreeVideoError("");
+    setFreeVideoUrl("");
+    setAgnesSegments([]);
     try {
-      const scene = story.scenes[0];
-      const prompt = [
-        "Cinematic movie shot, photorealistic, high detail, professional film production, 16:9 landscape.",
-        "Keep character identity and visual continuity consistent.",
-        "Location: " + scene.location + ". Action: " + scene.action + ". Camera: " + scene.camera + ". Lighting: " + scene.lighting + ". Sound/mood: " + scene.sound + ". Visual direction: " + scene.visualPrompt,
-        "Natural realistic motion, cinematic camera movement, coherent anatomy, no subtitles, no text, no watermark."
-      ].join(" ");
-      const response = await fetch("https://kingnish-wan2-2-fast.hf.space/gradio_api/call/generate_video", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ data: [prompt, "low quality, blurry, distorted anatomy, extra fingers, duplicate people, subtitles, text, watermark, static image", 3.5, 1, 3, 4, Math.floor(Math.random() * 2147483647), true] })
-      });
-      const created = await response.json().catch(() => ({}));
-      if (!response.ok || !created?.event_id) throw new Error(created?.error || "تعذر إرسال الفيديو المجاني إلى ZeroGPU.");
-      const eventResponse = await fetch("https://kingnish-wan2-2-fast.hf.space/gradio_api/call/generate_video/" + encodeURIComponent(created.event_id), { headers: { "accept": "text/event-stream" } });
-      if (!eventResponse.ok || !eventResponse.body) throw new Error("تعذر متابعة طابور ZeroGPU.");
-      const reader = eventResponse.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let videoUrl = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() || "";
-        for (const event of events) {
-          const dataLine = event.split("\n").find((line) => line.startsWith("data:"));
-          if (!dataLine) continue;
-          const payload = dataLine.slice(5).trim();
-          if (!payload || payload === "null") continue;
-          let parsed: any;
-          try { parsed = JSON.parse(payload); } catch { continue; }
-          if (event.includes("error")) throw new Error(typeof parsed === "string" ? parsed : "فشل توليد الفيديو المجاني.");
-          if (event.includes("complete") && Array.isArray(parsed)) {
-            const first = parsed[0];
-            if (typeof first === "string") videoUrl = first;
-            else if (first?.url) videoUrl = first.url;
-            else if (first?.path) videoUrl = "https://kingnish-wan2-2-fast.hf.space/file=" + first.path;
+      // First integration stage: render up to three scenes so free quota is not exhausted unexpectedly.
+      const scenes = story.scenes.slice(0, 3);
+      const completed: { index: number; url: string; status: string }[] = [];
+      for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i];
+        const prompt = [
+          "Cinematic 16:9 landscape film shot, high detail, coherent anatomy, no on-screen text or watermark.",
+          "Maintain character identity and visual continuity throughout the story.",
+          "Scene " + (i + 1) + ": Location: " + scene.location + ". Action: " + scene.action + ". Dialogue context: " + scene.dialogue + ". Camera: " + scene.camera + ". Lighting: " + scene.lighting + ". Mood and sound direction: " + scene.sound + ". Visual direction: " + scene.visualPrompt,
+          "Visual style: " + style + ". Genre: " + genre + ". Main character: " + (customCharacter || character)
+        ].join(" ");
+        const createResponse = await fetch("/api/generate-agnes-video", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        const created = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok || !created?.taskId) {
+          throw new Error(created?.error || "تعذر بدء إنشاء المشهد " + (i + 1) + ".");
+        }
+
+        const deadline = Date.now() + 15 * 60 * 1000;
+        let videoUrl = "";
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 30000));
+          const statusResponse = await fetch("/api/agnes-video-status?taskId=" + encodeURIComponent(created.taskId), { cache: "no-store" });
+          const statusData = await statusResponse.json().catch(() => ({}));
+          if (!statusResponse.ok) throw new Error(statusData?.error || "تعذر متابعة المشهد " + (i + 1) + ".");
+          if (statusData.status === "failed") throw new Error(statusData.error || "فشل إنشاء المشهد " + (i + 1) + ".");
+          if (statusData.status === "completed") {
+            videoUrl = statusData.videoUrl || "";
+            break;
           }
         }
+        if (!videoUrl) throw new Error("تجاوز المشهد " + (i + 1) + " مهلة الانتظار. قد يكون الطابور مزدحمًا؛ حاول لاحقًا.");
+        const item = { index: i + 1, url: videoUrl, status: "completed" };
+        completed.push(item);
+        setAgnesSegments([...completed]);
+        if (i === 0) setFreeVideoUrl(videoUrl);
       }
-      if (!videoUrl) throw new Error("انتهى الطلب دون رابط فيديو. قد تكون حصة ZeroGPU ممتلئة أو الطابور مزدحمًا.");
-      setFreeVideoUrl(videoUrl);
     } catch (e) {
-      setFreeVideoError(e instanceof Error ? e.message : "تعذر إنشاء الفيديو المجاني.");
+      setFreeVideoError(e instanceof Error ? e.message : "تعذر إنشاء المشاهد عبر Agnes.");
     } finally {
       setFreeVideoGenerating(false);
     }
@@ -187,7 +187,7 @@ export default function App() {
 
   function reset() {
     setIdea(""); setCharacter(""); setCustomCharacter(""); setStyle("سينمائي"); setGenre("فيلم سينمائي");
-    setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea"); setFreeVideoUrl(""); setFreeVideoError("");
+    setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea"); setFreeVideoUrl(""); setFreeVideoError(""); setAgnesSegments([]);
   }
 
   return <main dir="rtl" className="min-h-screen bg-slate-950 text-white">
@@ -200,10 +200,10 @@ export default function App() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold">🎬 محرك الفيديو المجاني</h2>
-            <p className="mt-2 text-sm text-slate-300">يعمل عبر Hugging Face ZeroGPU من الهاتف، باستخدام نماذج فيديو مفتوحة. لا يحتاج Runway أو رصيد OpenAI.</p>
-            <p className="mt-2 text-xs text-slate-400">الحساب المجاني له حصة GPU يومية محدودة، لذلك لا نعد بفيديوهات مجانية بلا حدود.</p>
+            <p className="mt-2 text-sm text-slate-300">يستخدم واجهة Agnes المجانية من الخادم لإنشاء مشاهد متتابعة. مفتاح Agnes محفوظ على الخادم ولا يظهر في المتصفح.</p>
+            <p className="mt-2 text-xs text-slate-400">سنبدأ بثلاثة مشاهد تجريبية لتجنب استهلاك الحصة بسرعة. كل مشهد يستغرق وقتًا وقد تخضع الخدمة لحدود مجانية تتغير.</p>
           </div>
-          <a href="https://huggingface.co/spaces/zerogpu-aoti/wan2-2-fp8da-aoti-faster" target="_blank" rel="noreferrer" className="shrink-0 rounded-2xl bg-emerald-400 px-5 py-3 text-center font-bold text-slate-950">فتح Wan 2.2 المجاني</a>
+          <a href="https://video.lichuanyang.top/en" target="_blank" rel="noreferrer" className="shrink-0 rounded-2xl bg-emerald-400 px-5 py-3 text-center font-bold text-slate-950">معرفة المزيد عن Agnes</a>
         </div>
       </section>
 
@@ -259,12 +259,12 @@ export default function App() {
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">الشخصيات</h3>{story.characters.map((c) => <div key={c.name} className="mt-3 border-b border-white/10 pb-3"><b>{c.name}</b> — {c.role}<div className="text-sm text-slate-400">{c.visual}</div></div>)}</article>
           <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">المشاهد ({story.scenes.length})</h3>{story.scenes.map((s) => <div key={s.number} className="mt-3 rounded-xl border border-white/10 p-4"><b>المشهد {s.number}: {s.location}</b><p className="mt-1 text-sm">{s.action}</p><p className="mt-1 text-xs text-slate-500">الكاميرا: {s.camera} • الصوت: {s.sound}</p></div>)}</article>
           <article className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5">
-            <h3 className="text-xl font-bold">🆓 تجربة فيديو مجانية من داخل اسألني AI</h3>
-            <p className="mt-2 text-sm text-slate-300">سنحوّل المشهد الأول من القصة إلى مقطع سينمائي قصير باستخدام Wan 2.2 Text-to-Video على Hugging Face ZeroGPU، بدون Runway وبدون رصيد OpenAI.</p>
-            <button disabled={freeVideoGenerating} onClick={createFreeVideo} className="mt-4 w-full rounded-2xl bg-emerald-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{freeVideoGenerating ? "⏳ جارٍ انتظار ZeroGPU..." : "🎥 إنشاء أول مشهد مجانًا"}</button>
+            <h3 className="text-xl font-bold">🆓 إنشاء مشاهد متعددة عبر Agnes</h3>
+            <p className="mt-2 text-sm text-slate-300">سيتم إرسال أول ثلاثة مشاهد من السيناريو إلى واجهة Agnes المجانية بالتتابع. هذه مرحلة تجريبية: تعرض المقاطع الناتجة منفصلة ولا تدمجها بعد في ملف MP4 واحد.</p>
+            <button disabled={freeVideoGenerating} onClick={createFreeVideo} className="mt-4 w-full rounded-2xl bg-emerald-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{freeVideoGenerating ? "⏳ جارٍ إنشاء المشاهد عبر Agnes..." : "🎥 إنشاء أول 3 مشاهد مجانًا"}</button>
             {freeVideoError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{freeVideoError}</div>}
-            {freeVideoUrl && <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-slate-950"><video controls playsInline preload="metadata" src={freeVideoUrl} className="w-full" /><div className="p-3 text-xs text-slate-400">تم إنشاء المقطع المجاني من المشهد الأول.</div></div>}
-            <p className="mt-3 text-xs text-slate-500">ZeroGPU مجاني لكن الحصة اليومية محدودة، وقد يزداد وقت الانتظار عند ازدحام الطابور.</p>
+            {agnesSegments.length > 0 && <div className="mt-4 space-y-4">{agnesSegments.map((segment) => <div key={segment.index} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950"><div className="p-3 text-sm font-bold">المشهد {segment.index}</div><video controls playsInline preload="metadata" src={segment.url} className="w-full" /><a href={segment.url} target="_blank" rel="noreferrer" className="block p-3 text-sm text-emerald-300 underline">فتح / حفظ المقطع</a></div>)}</div>}
+            <p className="mt-3 text-xs text-slate-500">يحتاج هذا المسار إلى ضبط AGNES_API_KEY في إعدادات Vercel قبل أن يعمل. روابط المزود قد تكون مؤقتة.</p>
           </article>
 
           <article className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
