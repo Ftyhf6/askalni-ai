@@ -45,7 +45,7 @@ export default function App() {
   const [freeVideoError, setFreeVideoError] = useState("");
 
   const visible = useMemo(() => filter === "الكل" ? characters : characters.filter((c) => c[3] === filter), [filter]);
-  const price = duration <= 1 ? 0 : duration;
+  const price = 0;
 
   function nextFromIdea() {
     if (idea.trim().length < 10) return setError("اكتب فكرة واضحة من 10 أحرف على الأقل.");
@@ -214,7 +214,7 @@ export default function App() {
         <p className="mt-2 text-slate-400">أفلام سينمائية، فانتازيا، خيال علمي، وحوش، رعب، مغامرات، قصص دينية وغيرها.</p>
         <textarea value={idea} onChange={(e) => { setIdea(e.target.value); setError(""); }} placeholder="مثال: أريد فيلماً عن وحش عملاق يظهر في مدينة مستقبلية..." className="mt-5 min-h-44 w-full rounded-2xl border border-white/10 bg-slate-900 p-4 outline-none focus:border-amber-400" />
         <button onClick={nextFromIdea} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950">تحليل الفكرة والمتابعة</button>
-        <p className="mt-3 text-center text-xs text-slate-500">المرحلة الأولى: إنشاء القصة فقط. لن يبدأ تصنيع الفيلم إلا بعد ظهور القصة وضغطك على زر «ابدأ تصنيع الفيلم».</p>
+        <p className="mt-3 text-center text-xs text-slate-500">إنشاء القصة يستخدم محرك Gemini المجاني ضمن حدوده المتاحة.</p>
       </section>}
 
       {step === "details" && <section className="space-y-5">
@@ -233,7 +233,7 @@ export default function App() {
             <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">نوع العمل</span><select value={genre} onChange={(e) => setGenre(e.target.value)} className="mt-2 w-full bg-transparent font-bold outline-none">{genres.map((x) => <option key={x}>{x}</option>)}</select></label>
             <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">المدة</span><input type="number" min={1} max={60} value={duration} onChange={(e) => setDuration(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} className="mt-2 w-full bg-transparent text-2xl font-bold outline-none" /></label>
             <label className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">اللغة</span><select value={language} onChange={(e) => setLanguage(e.target.value)} className="mt-2 w-full bg-transparent font-bold outline-none"><option>العربية</option><option>English</option><option>اردو</option><option>کوردی</option></select></label>
-            <div className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">التكلفة</span><div className="mt-2 text-2xl font-bold">{price === 0 ? "مجاني" : "$" + price}</div><div className="text-xs text-slate-500">أول دقيقة مجانية، ثم $1 لكل دقيقة إضافية.</div></div>
+            <div className="rounded-2xl bg-slate-900 p-4"><span className="text-sm text-slate-400">التكلفة</span><div className="mt-2 text-2xl font-bold">{price === 0 ? "مجاني" : "$" + price}</div><div className="text-xs text-slate-500">لا توجد رسوم داخل التطبيق؛ حدود الاستخدام المجاني لدى المزود تنطبق.</div></div>
           </div>
           <button onClick={() => setReligiousMode(!religiousMode)} className={"mt-4 w-full rounded-2xl px-4 py-3 text-right " + (religiousMode ? "bg-amber-400 text-slate-950" : "bg-slate-900 text-slate-300")}>{religiousMode ? "الوضع الديني مفعّل — ضوابط خاصة للأنبياء والمصادر" : "تفعيل الوضع الديني عند صناعة قصص الأنبياء"}</button>
         </div>
@@ -270,8 +270,8 @@ export default function App() {
           <article className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
             <h3 className="text-xl font-bold">🎬 تصنيع الفيلم الكامل</h3>
             <p className="mt-2 text-sm text-slate-300">يحوّل المشاهد إلى مقاطع سينمائية 16:9 متتابعة مع حركة كاميرا وإضاءة وصوت، ثم يعرض المقاطع بالترتيب. هذا هو مسار التصنيع الفعلي، وليس مجرد كتابة قصة.</p>
-            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">المسار المدفوع: Runway. أما المسار المجاني الآن فيستخدم Wan 2.2 عبر ZeroGPU من داخل التطبيق. المقطع المجاني قصير لأن الحصة اليومية محدودة.</div>
-            <button disabled={filmGenerating} onClick={createFilm} className="mt-4 w-full rounded-2xl bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-60">{filmGenerating ? "🎞️ جارٍ تصنيع الفيلم... " + filmProgress + "%" : "🎥 ابدأ تصنيع الفيلم"}</button>
+            <div className="mt-3 rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">مسار Runway المدفوع متوقف في هذه النسخة احترامًا لطلبك بأن تكون الخدمة مجانية فقط. المتاح حاليًا تجربة مشهد قصير عبر Wan 2.2، والحصة اليومية محدودة.</div>
+            <button disabled className="mt-4 w-full cursor-not-allowed rounded-2xl bg-slate-700 px-5 py-3 font-bold text-slate-300">⏳ التصنيع الكامل المجاني قيد التجهيز</button>
             {filmError && <div className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{filmError}</div>}
             {filmSegments.length > 0 && <div className="mt-4 space-y-4">
               <div className="text-sm text-slate-300">تم تصنيع {filmSegments.length} مقطعًا.</div>
@@ -284,7 +284,7 @@ export default function App() {
           </article>
           {religiousMode && story.religiousNotes.length > 0 && <article className="rounded-2xl bg-slate-950/70 p-5"><h3 className="font-bold">ملاحظات الوضع الديني</h3>{story.religiousNotes.map((n, i) => <p key={i} className="mt-2 text-sm">{n}</p>)}</article>}
         </div>
-        <p className="mt-5 text-sm text-slate-300">تم إنشاء القصة أولًا بنجاح. تصنيع الفيلم مرحلة منفصلة ولا يبدأ تلقائيًا. اضغط «ابدأ تصنيع الفيلم» فقط عندما تريد تحويل هذه القصة إلى فيديو.</p>
+        <p className="mt-5 text-sm text-slate-300">تم إنشاء القصة أولًا. يمكنك تجربة إنشاء المشهد الأول مجانًا؛ أما تصنيع فيلم كامل من عدة مشاهد وتجميعه في ملف واحد فما زال قيد التجهيز المجاني.</p>
         <button onClick={reset} className="mt-4 rounded-2xl bg-white px-5 py-3 font-bold text-slate-950">إنشاء عمل جديد</button>
       </section>}
 
