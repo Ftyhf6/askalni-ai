@@ -41,7 +41,6 @@ export default function App() {
   const [filmProgress, setFilmProgress] = useState(0);
   const [filmError, setFilmError] = useState("");
   const [freeVideoGenerating, setFreeVideoGenerating] = useState(false);
-  const [freeVideoUrl, setFreeVideoUrl] = useState("");
   const [freeVideoError, setFreeVideoError] = useState("");
   const [agnesSegments, setAgnesSegments] = useState<{ index: number; url: string; status: string }[]>([]);
 
@@ -86,7 +85,6 @@ export default function App() {
     if (!story?.scenes?.length || freeVideoGenerating) return;
     setFreeVideoGenerating(true);
     setFreeVideoError("");
-    setFreeVideoUrl("");
     setAgnesSegments([]);
     try {
       // First integration stage: render up to three scenes so free quota is not exhausted unexpectedly.
@@ -127,7 +125,6 @@ export default function App() {
         const item = { index: i + 1, url: videoUrl, status: "completed" };
         completed.push(item);
         setAgnesSegments([...completed]);
-        if (i === 0) setFreeVideoUrl(videoUrl);
       }
     } catch (e) {
       setFreeVideoError(e instanceof Error ? e.message : "تعذر إنشاء المشاهد عبر Agnes.");
@@ -187,7 +184,7 @@ export default function App() {
 
   function reset() {
     setIdea(""); setCharacter(""); setCustomCharacter(""); setStyle("سينمائي"); setGenre("فيلم سينمائي");
-    setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea"); setFreeVideoUrl(""); setFreeVideoError(""); setAgnesSegments([]);
+    setDuration(3); setLanguage("العربية"); setReligiousMode(false); setStory(null); setFilter("الكل"); setError(""); setStep("idea"); setFreeVideoError(""); setAgnesSegments([]);
   }
 
   return <main dir="rtl" className="min-h-screen bg-slate-950 text-white">
