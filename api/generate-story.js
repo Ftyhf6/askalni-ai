@@ -1,89 +1,76 @@
 export const runtime = "nodejs24.x";
-export const maxDuration = 300; // في حال كانت خطتك تسمح، وإلا سيعمل بحد 10 ثواني تلقائياً
+export const maxDuration = 60;
 
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"; // تم تصحيح الموديل
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 export default async function handler(req, res) {
-  // التحقق من طريقة الطلب
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
-
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   if (!apiKey) {
-    return res.status(503).json({ 
-      error: "محرك الذكاء الاصطناعي غير مفعّل بعد. أضف OPENAI_API_KEY إلى متغيرات Vercel ثم أعد النشر.", 
-      code: "AI_NOT_CONFIGURED" 
+    return res.status(503).json({
+      error: "محرك القصة المجاني غير مفعّل. أنشئ مفتاح Gemini مجانيًا وأضفه في Vercel باسم GEMINI_API_KEY ثم أعد النشر.",
+      code: "GEMINI_NOT_CONFIGURED"
     });
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    
-    if (!body.idea?.trim()) {
-      return res.status(400).json({ error: "اكتب فكرة الفيلم أولاً." });
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    if (typeof body.idea !== "string" || body.idea.trim().length < 10) {
+      return res.status(400).json({ error: "اكتب فكرة واضحة من 10 أحرف على الأقل." });
     }
 
     const duration = Math.min(60, Math.max(1, Number(body.duration) || 1));
+    const system = `أنت محرك اسألني AI لصناعة القصص والأفلام. أنشئ قصة متكاملة ثم قسّمها إلى مشاهد مترابطة قابلة للإنتاج. حافظ على استمرارية الشخصيات والأماكن. لكل مشهد أدرج الحدث والحوار والكاميرا والإضاءة والصوت ووصفًا بصريًا واضحًا. عند تفعيل الوضع الديني، لا تعرض الإضافات الدرامية كحقائق، وافصل المادة الموثقة عن الإضافة الدرامية. لا تصوّر الأنبياء تصويرًا جسديًا تفصيليًا. أعد JSON صالحًا فقط بالشكل التالي: {"title":"", "logline":"", "genre":"", "durationMinutes":1, "assumptions":[], "religiousNotes":[], "characters":[{"name":"","role":"","visual":"","personality":""}], "world":"", "story":{"beginning":"","middle":"","climax":"","ending":""}, "scenes":[{"number":1,"durationSeconds":5,"location":"","action":"","dialogue":"","camera":"","lighting":"","sound":"","visualPrompt":""}], "productionPlan":{"imageStyle":"","videoStyle":"","audioStyle":"","continuity":""}}. أنشئ عددًا مناسبًا من المشاهد للمدة، مع تفضيل وصف غني ومفيد لكل مشهد.`;
+    const user = `فكرة المستخدم: ${body.idea.trim()}
+الشخصية: ${body.character || "اختر الشخصيات المناسبة"}
+النمط البصري: ${body.style || "سينمائي"}
+النوع: ${body.genre || "فيلم سينمائي"}
+المدة المطلوبة: ${duration} دقيقة
+لغة القصة: ${body.language || "العربية"}
+الوضع الديني: ${body.religiousMode ? "مفعّل" : "غير مفعّل"}`;
 
-    const system = "أنت محرك اسألني AI لصناعة القصص والأفلام. أنشئ قصة كاملة من البداية إلى النهاية، ثم قسّمها إلى مشاهد مترابطة قابلة للإنتاج. يمكن أن تكون الأعمال سينمائية أو فانتازيا أو خيالاً علمياً أو وحوشاً أو رعباً أو أكشن أو مغامرة أو كوميديا أو تاريخية. حافظ على استمرارية الشخصيات والأماكن. لكل مشهد أدرج الحدث والحوار والكاميرا والإضاءة والصوت ووصفاً بصرياً. عند تفعيل الوضع الديني: لا تعرض الإضافات الدرامية كحقائق، وافصل المادة الموثقة عن الإضافة الدرامية. الأنبياء يمثلون رمزياً كهيئة إنسانية من نور دون ملامح أو تفاصيل جسدية، وليس تصويراً حقيقياً لشكل النبي. أعد JSON فقط بالشكل: {title,logline,genre,durationMinutes,assumptions,religiousNotes,characters:[{name,role,visual,personality}],world,story:{beginning,middle,climax,ending},scenes:[{number,durationSeconds,location,action,dialogue,camera,lighting,sound,visualPrompt}],productionPlan:{imageStyle,videoStyle,audioStyle,continuity}}";
-    
-    const user = "فكرة المستخدم: " + body.idea.trim() + "\nالشخصية: " + (body.character || "اختر الشخصيات المناسبة") + "\nالنمط: " + (body.style || "سينمائي") + "\nالنوع: " + (body.genre || "فيلم سينمائي") + "\nالمدة: " + duration + " دقيقة\nاللغة: " + (body.language || "العربية") + "\nالوضع الديني: " + (body.religiousMode ? "مفعّل" : "غير مفعّل");
-
-    // استخدام الواجهة القياسية والأسرع
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 240000);
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + apiKey
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: model,
-        response_format: { type: "json_object" }, // يضمن إرجاع JSON صالح
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user }
-        ]
-      })
-    });
+    const timeout = setTimeout(() => controller.abort(), 50000);
+    let response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: "user", parts: [{ text: user }] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.8 }
+        })
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
-    clearTimeout(timeout);
-
+    const raw = await response.text();
+    let data = {};
+    try { data = JSON.parse(raw); } catch {}
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API Error:", errorText);
-      return res.status(502).json({ 
-        error: "تعذر تشغيل محرك الذكاء الاصطناعي.", 
-        providerStatus: response.status 
-      });
+      console.error("Gemini API error:", response.status, raw.slice(0, 1000));
+      const message = data?.error?.message || "";
+      if (response.status === 429) return res.status(429).json({ error: "وصل محرك القصة إلى حد الاستخدام المجاني مؤقتًا. انتظر ثم حاول مجددًا.", code: "FREE_QUOTA_EXCEEDED" });
+      if (response.status === 400 || response.status === 403) return res.status(502).json({ error: "رفض Gemini الطلب. تأكد من أن المفتاح صحيح وأن النموذج متاح في حسابك المجاني.", providerStatus: response.status });
+      return res.status(502).json({ error: "تعذر تشغيل محرك القصة المجاني حاليًا.", providerStatus: response.status, details: message.slice(0, 180) });
     }
 
-    const data = await response.json();
-    
-    // استخراج النص مباشرة
-    const text = data.choices?.[0]?.message?.content?.trim();
-    
-    if (!text) {
-      return res.status(502).json({ 
-        error: "لم يُرجع محرك الذكاء الاصطناعي نص القصة.", 
-        code: "AI_EMPTY_RESPONSE" 
-      });
-    }
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim();
+    if (!text) return res.status(502).json({ error: "لم يُرجع محرك Gemini نص القصة.", code: "AI_EMPTY_RESPONSE" });
 
-    // تحويل JSON مع تطبيع الحقول حتى لا تنهار الواجهة إذا كان الرد ناقصًا.
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch (e) {
-      const startJson = text.indexOf("{");
-      const endJson = text.lastIndexOf("}");
-      if (startJson >= 0 && endJson > startJson) parsed = JSON.parse(text.slice(startJson, endJson + 1));
-      else throw new Error("Invalid JSON response from AI");
+    } catch {
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start < 0 || end <= start) throw new Error("Invalid JSON response from Gemini");
+      parsed = JSON.parse(text.slice(start, end + 1));
     }
 
     const asText = (value) => typeof value === "string" ? value : "";
@@ -127,16 +114,11 @@ export default async function handler(req, res) {
       }
     };
 
-    if (!story.scenes.length) {
-      return res.status(502).json({ error: "محرك الذكاء الاصطناعي أعاد قصة بلا مشاهد قابلة للإنتاج.", code: "AI_INVALID_STORY" });
-    }
-
+    if (!story.scenes.length) return res.status(502).json({ error: "أعاد محرك Gemini قصة بلا مشاهد قابلة للإنتاج.", code: "AI_INVALID_STORY" });
     return res.status(200).json({ story });
-
   } catch (error) {
-    console.error("Story generation error:", error);
-    return res.status(500).json({ 
-      error: "حدث خطأ أثناء إنشاء القصة. تحقق من إعدادات محرك الذكاء الاصطناعي." 
-    });
+    console.error("Gemini story generation error:", error);
+    if (error?.name === "AbortError") return res.status(504).json({ error: "استغرق إنشاء القصة وقتًا طويلًا. حاول مجددًا." });
+    return res.status(500).json({ error: "حدث خطأ أثناء إنشاء القصة المجانية. حاول مرة أخرى." });
   }
 }
